@@ -112,6 +112,21 @@ function openWizard() {
         prefixInput,
         el('span', { class: 'hint', text: 'Leeghalen om het hele domein toe te staan. Navigatie, footer en zijbalk worden altijd al genegeerd.' }),
       ]),
+      isButtonEnabled() ? null : el('div', { class: 'hint' }, [
+        'Sneller starten? ',
+        el('button', {
+          class: 'link',
+          type: 'button',
+          text: 'zet het knopje op deze site',
+          onclick: () => {
+            captureInputs();
+            setButtonEnabled(true);
+            panel.setStatus('Het knopje staat nu rechtsonder op deze site.');
+            renderStart();
+          },
+        }),
+        ' — dan hoef je hier niet meer via het Tampermonkey-menu te komen.',
+      ]),
       el('details', { class: 'more' }, [
         el('summary', { text: 'Meer opties' }),
         el('label', { class: 'field' }, [

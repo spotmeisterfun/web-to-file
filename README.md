@@ -13,7 +13,8 @@ geen server en geen API-token nodig.
 ## Zo werkt het
 
 1. Open de pagina die je wilt opslaan (bijvoorbeeld een Confluence-pagina).
-2. Start het script via het Tampermonkey-menu of met **Ctrl+Shift+M**.
+2. Klik op het knopje rechtsonder in beeld (of, als dat er nog niet staat, op
+   **Pagina('s) opslaan als Markdown** in het Tampermonkey-menu).
 3. **Stap 1 — instellen:** de URL staat al ingevuld. Kies hoe diep je wilt gaan:
    alleen deze pagina, 1 laag diep, 2 of 3.
 4. **Stap 2 — verkennen:** bij diepte 1 wordt alléén de startpagina opgehaald om
@@ -42,9 +43,28 @@ waarin alles al zit.
    Tampermonkey biedt dan aan het te installeren.
    Werkt dat niet, dan kan het ook met de hand: Tampermonkey-dashboard →
    **Hulpprogramma's** → **Bestand importeren**.
+4. Pin Tampermonkey aan de werkbalk (puzzelstukje → speldje). Het menu is dan
+   altijd twee klikken weg.
 
-Controleer na installatie of het werkt: open een willekeurige pagina, druk
-**Ctrl+Shift+M**, en het paneel hoort te verschijnen.
+## Het knopje
+
+Er is bewust **geen sneltoets**. Edge gebruikt combinaties als Ctrl+Shift+M zelf
+(daar wissel je van profiel mee) en stuurt die nooit door naar de pagina, dus geen
+enkel userscript kan zo'n toets afvangen. Een knopje werkt altijd.
+
+Het knopje staat standaard **nergens** aan, zodat je niet op elke willekeurige
+website een knop krijgt. Zet het per site aan waar je het nodig hebt:
+
+1. Open je wiki (bijvoorbeeld Confluence).
+2. Tampermonkey-menu → **Knopje op deze site aan-/uitzetten**.
+
+Rechtsonder verschijnt dan een klein rond knopje. Het is halfdoorzichtig tot je er
+met de muis overheen gaat, en je kunt het **verslepen** naar een andere plek als het
+in de weg zit; die positie wordt onthouden. Met hetzelfde menu-item zet je het weer
+uit.
+
+Sta je al in het paneel via het Tampermonkey-menu, dan kun je het knopje daar ook
+met één klik voor die site aanzetten.
 
 ## Het resultaat gebruiken in Copilot
 
@@ -85,7 +105,7 @@ De selector wordt per domein onthouden en vanaf dan gebruikt. Wissen kan met
 | Afbeeldingen | Als Markdown-link behouden, vervangen door `[afbeelding: alt]`, of weglaten. |
 | URL-patroon uitsluiten | Optionele regex om pagina's over te slaan. |
 | Links buiten de hoofdinhoud volgen | Standaard uit. Aanzetten levert veel meer, maar ook veel rommeliger resultaten. |
-| Zwevende knop | Optioneel knopje rechtsonder op elke pagina, in plaats van het menu. |
+| Knopje op deze site | Zet het knopje rechtsonder aan of uit voor het huidige domein. Staat standaard uit. |
 
 ## Beperkingen
 

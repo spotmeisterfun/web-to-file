@@ -6,7 +6,7 @@ const lib = loadModules(
   ['src/util.js', 'src/settings.js', 'src/scope.js', 'src/assemble.js'],
   [
     'normalizeUrl', 'dedupeKey', 'slugify', 'uniqueSlug', 'countWords', 'estimateTokens',
-    'shortenUrl', 'todayStamp', 'pool', 'retry',
+    'shortenUrl', 'todayStamp', 'pool', 'retry', 'clampToViewport',
     'createScopeFilter', 'guessScopePrefix',
     'assembleDocument', 'buildFilename', 'splitDocument',
   ],
@@ -184,6 +184,37 @@ test('splitDocument splitst alleen als het nodig is', () => {
     assert.match(part.content, /^---\n/, 'elk deel houdt de frontmatter');
     assert.match(part.content, /Deel \d+ van \d+/);
   }
+});
+
+test('clampToViewport laat een geldige positie staan', () => {
+  const result = lib.clampToViewport({ right: 18, bottom: 18 }, { width: 1200, height: 800, size: 34 });
+  assert.deepEqual({ right: result.right, bottom: result.bottom }, { right: 18, bottom: 18 });
+});
+
+test('clampToViewport trekt de knop terug in beeld', () => {
+  // Verder weg van de rand dan het venster breed is: moet binnen blijven.
+  const tooFar = lib.clampToViewport({ right: 5000, bottom: 5000 }, { width: 1200, height: 800, size: 34 });
+  assert.equal(tooFar.right, 1200 - 34 - 8);
+  assert.equal(tooFar.bottom, 800 - 34 - 8);
+
+  // Negatief of tegen de rand: minimaal de marge aanhouden.
+  const negative = lib.clampToViewport({ right: -40, bottom: 0 }, { width: 1200, height: 800, size: 34 });
+  assert.equal(negative.right, 8);
+  assert.equal(negative.bottom, 8);
+});
+
+test('clampToViewport valt terug op de standaardhoek bij onzin', () => {
+  const result = lib.clampToViewport(null, { width: 1200, height: 800, size: 34 });
+  assert.deepEqual({ right: result.right, bottom: result.bottom }, { right: 18, bottom: 18 });
+
+  const broken = lib.clampToViewport({ right: 'x', bottom: undefined }, { width: 1200, height: 800, size: 34 });
+  assert.deepEqual({ right: broken.right, bottom: broken.bottom }, { right: 18, bottom: 18 });
+});
+
+test('clampToViewport overleeft een venster dat kleiner is dan de knop', () => {
+  const result = lib.clampToViewport({ right: 18, bottom: 18 }, { width: 20, height: 20, size: 34 });
+  assert.equal(result.right, 8);
+  assert.equal(result.bottom, 8);
 });
 
 test('shortenUrl kort lange paden in', () => {

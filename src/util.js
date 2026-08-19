@@ -141,6 +141,35 @@ function shortenUrl(rawUrl, maxLength = 72) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+/**
+ * Houdt de zwevende knop binnen het venster. De positie is de afstand van de
+ * rechter- en onderrand tot de knop, zodat hij bij het verkleinen van het venster
+ * in de hoek blijft hangen in plaats van eruit te schuiven.
+ *
+ * @param {{right: number, bottom: number}} position
+ * @param {{width: number, height: number, size: number}} viewport
+ */
+function clampToViewport(position, viewport) {
+  const margin = 8;
+  const size = Number(viewport && viewport.size) > 0 ? Number(viewport.size) : 34;
+  const width = Number(viewport && viewport.width) > 0 ? Number(viewport.width) : 0;
+  const height = Number(viewport && viewport.height) > 0 ? Number(viewport.height) : 0;
+
+  const fallback = 18;
+  // Alleen echte getallen tellen: Number(null) is 0, en dat zou als een
+  // geldige positie tegen de rand worden gelezen.
+  const wanted = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+  const fit = (value, extent) => {
+    const limit = Math.max(margin, extent - size - margin);
+    return Math.min(Math.max(value, margin), limit);
+  };
+
+  return {
+    right: fit(wanted(position && position.right), width),
+    bottom: fit(wanted(position && position.bottom), height),
+  };
+}
+
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, '&amp;')
