@@ -52,19 +52,23 @@ Er is bewust **geen sneltoets**. Edge gebruikt combinaties als Ctrl+Shift+M zelf
 (daar wissel je van profiel mee) en stuurt die nooit door naar de pagina, dus geen
 enkel userscript kan zo'n toets afvangen. Een knopje werkt altijd.
 
-Het knopje staat standaard **nergens** aan, zodat je niet op elke willekeurige
-website een knop krijgt. Zet het per site aan waar je het nodig hebt:
+Het knopje staat **overal** en hoeft niet ingesteld te worden: rechtsonder in beeld
+zie je een klein rond knopje. Het is halfdoorzichtig tot je er met de muis overheen
+gaat, en je kunt het **verslepen** als het in de weg zit; die positie wordt onthouden.
 
-1. Open je wiki (bijvoorbeeld Confluence).
-2. Tampermonkey-menu → **Knopje op deze site aan-/uitzetten**.
+Stoort het knopje op een bepaalde site, dan verberg je het daar:
 
-Rechtsonder verschijnt dan een klein rond knopje. Het is halfdoorzichtig tot je er
-met de muis overheen gaat, en je kunt het **verslepen** naar een andere plek als het
-in de weg zit; die positie wordt onthouden. Met hetzelfde menu-item zet je het weer
-uit.
+- Tampermonkey-menu → **Knopje op deze site aan-/uitzetten**.
 
-Sta je al in het paneel via het Tampermonkey-menu, dan kun je het knopje daar ook
-met één klik voor die site aanzetten.
+Dat geldt alleen voor dat domein en blijft bewaard. Met hetzelfde menu-item zet je hem
+weer aan; dat kan ook met één klik vanuit stap 1 van het paneel.
+
+**Zie je geen knopje?** Kijk of je op een gewone `http(s)`-pagina zit. Op interne
+browserpagina's zoals `edge://…` of de Tampermonkey-instellingen (`extension://…`)
+draait het script niet — daar is dus ook geen knop en geen menu-item. Staat er op een
+normale pagina niets, klik dan op het Tampermonkey-icoon: zie je daar de vier
+menu-items van web-to-file niet, dan wordt het script niet uitgevoerd en staat de
+ontwikkelaarsmodus van Edge waarschijnlijk nog uit (zie **Installeren**).
 
 ## Het resultaat gebruiken in Copilot
 
@@ -105,7 +109,7 @@ De selector wordt per domein onthouden en vanaf dan gebruikt. Wissen kan met
 | Afbeeldingen | Als Markdown-link behouden, vervangen door `[afbeelding: alt]`, of weglaten. |
 | URL-patroon uitsluiten | Optionele regex om pagina's over te slaan. |
 | Links buiten de hoofdinhoud volgen | Standaard uit. Aanzetten levert veel meer, maar ook veel rommeliger resultaten. |
-| Knopje op deze site | Zet het knopje rechtsonder aan of uit voor het huidige domein. Staat standaard uit. |
+| Knopje op deze site | Verberg het knopje rechtsonder voor het huidige domein, of zet het weer aan. Staat standaard overal aan. |
 
 ## Beperkingen
 

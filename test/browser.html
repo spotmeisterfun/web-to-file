@@ -367,34 +367,39 @@
     (target || window).dispatchEvent(event);
   };
 
-  check('zonder de site aan te zetten staat er geen knopje', () => {
-    wtf.unmountFloatingButton();
-    assert(wtf.isButtonEnabled() === false, 'de knop hoort standaard uit te staan');
+  check('zonder iets in te stellen staat het knopje er gewoon', () => {
+    // Standaard zichtbaar: alleen een expliciete false verbergt hem.
+    assert(wtf.isButtonEnabled() === true, 'de knop hoort standaard aan te staan');
     wtf.mountFloatingButton();
-    // mountFloatingButton plaatst wel, maar boot() roept hem niet aan als de site uit staat.
-    assert(buttonHost(), 'expliciet plaatsen hoort wel te werken');
-    wtf.unmountFloatingButton();
-    assert(!buttonHost(), 'opruimen hoort de knop te verwijderen');
+    assert(buttonHost(), 'knop niet geplaatst');
   });
 
-  check('per site aanzetten plaatst het knopje en uitzetten haalt hem weg', () => {
-    wtf.setButtonEnabled(true);
-    assert(wtf.isButtonEnabled() === true, 'de instelling is niet bewaard');
-    assert(buttonHost(), 'knop niet geplaatst');
+  check('per site verbergen haalt het knopje weg en het blijft weg', () => {
     wtf.setButtonEnabled(false);
-    assert(wtf.isButtonEnabled() === false, 'de instelling is niet gewist');
+    assert(wtf.isButtonEnabled() === false, 'de instelling is niet bewaard');
     assert(!buttonHost(), 'knop niet verwijderd');
+    // Opnieuw plaatsen zoals boot() dat doet: blijft weg omdat de site uit staat.
+    if (wtf.isButtonEnabled()) wtf.mountFloatingButton();
+    assert(!buttonHost(), 'de knop kwam na herladen terug terwijl hij verborgen is');
+  });
+
+  check('weer aanzetten plaatst het knopje terug', () => {
+    wtf.setButtonEnabled(true);
+    assert(wtf.isButtonEnabled() === true, 'de instelling is niet gewist');
+    assert(buttonHost(), 'knop niet teruggeplaatst');
   });
 
   check('het knopje zit in een shadow DOM en lekt niets naar de pagina', () => {
     wtf.setButtonEnabled(true);
     const host = buttonHost();
+    assert(host, 'knop niet geplaatst');
     assert(host.shadowRoot, 'geen shadow DOM');
     assert(!host.textContent, 'de inhoud van de knop lekt naar de pagina');
     assert(launcher().getAttribute('aria-label').includes('Markdown'), 'geen toegankelijk label');
   });
 
   check('klikken op het knopje opent de wizard', () => {
+    wtf.setButtonEnabled(true);
     closePanel();
     launcher().click();
     const panel = document.querySelector('[data-web-to-file="panel"]');
@@ -403,6 +408,7 @@
   });
 
   check('slepen verplaatst het knopje en bewaart de positie', () => {
+    wtf.setButtonEnabled(true);
     closePanel();
     const before = launcher().style.right;
     pointer('pointerdown', 500, 500, launcher());
@@ -421,6 +427,7 @@
   });
 
   check('een klik zonder beweging blijft een klik', () => {
+    wtf.setButtonEnabled(true);
     closePanel();
     pointer('pointerdown', 400, 400, launcher());
     pointer('pointermove', 401, 400);
@@ -453,7 +460,6 @@
     assertExcludes(markdown, 'Markdown —');
     document.body.append(buttonHost());
     holder.remove();
-    wtf.setButtonEnabled(false);
   });
 
   /* ---------------- rapport ---------------- */

@@ -113,15 +113,15 @@ function openWizard() {
         el('span', { class: 'hint', text: 'Leeghalen om het hele domein toe te staan. Navigatie, footer en zijbalk worden altijd al genegeerd.' }),
       ]),
       isButtonEnabled() ? null : el('div', { class: 'hint' }, [
-        'Sneller starten? ',
+        'Het knopje is op deze site verborgen. ',
         el('button', {
           class: 'link',
           type: 'button',
-          text: 'zet het knopje op deze site',
+          text: 'Weer aanzetten',
           onclick: () => {
             captureInputs();
             setButtonEnabled(true);
-            panel.setStatus('Het knopje staat nu rechtsonder op deze site.');
+            panel.setStatus('Het knopje staat weer rechtsonder op deze site.');
             renderStart();
           },
         }),
