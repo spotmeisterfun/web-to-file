@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>web-to-file — browsertests</title>
+<style>
+  body { font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 24px; max-width: 900px; }
+  h1 { font-size: 18px; }
+  #summary { font-weight: 700; padding: 10px 12px; border-radius: 8px; margin: 12px 0; }
+  #summary.pass { background: #dcfce7; color: #14532d; }
+  #summary.fail { background: #fee2e2; color: #7f1d1d; }
+  li { margin-bottom: 3px; }
+  li.fail { color: #b91c1c; }
+  li.pass { color: #14532d; }
+  pre { background: #f1f5f9; padding: 10px; overflow: auto; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>web-to-file — browsertests</h1>
+<p>Deze pagina test de DOM-onderdelen (extractie en Markdown-conversie) tegen de fixtures in
+   <code>test/fixtures/</code>. Je kunt dit bestand rechtstreeks openen in de browser.
+   Draai eerst <code>node tools/build.mjs &amp;&amp; node tools/fixtures.mjs</code>, of laat
+   alles in één keer lopen met <code>node tools/test-browser.mjs</code>.</p>
+<div id="summary">Bezig…</div>
+<ul id="results"></ul>
+
+<script>
+  // Zet de testhaak aan vóórdat het userscript geladen wordt, en zet de
+  // GM_-functies neer die het script verwacht.
+  globalThis.__WEB_TO_FILE_TEST__ = true;
+  const gmStore = {};
+  globalThis.GM_getValue = (key, fallback) => (key in gmStore ? gmStore[key] : fallback);
+  globalThis.GM_setValue = (key, value) => { gmStore[key] = value; };
+  globalThis.GM_registerMenuCommand = () => {};
+  globalThis.GM_setClipboard = () => {};
+  globalThis.GM_download = () => {};
+  globalThis.GM_xmlhttpRequest = () => {};
+</script>
+<script src="fixtures/fixtures.js"></script>
+<script src="../dist/web-to-file.user.js"></script>
+<script>
+(async function () {
+  const results = [];
+  const check = (name, fn) => {
+    try {
+      const detail = fn();
+      results.push({ name, ok: true, detail: detail || '' });
+    } catch (error) {
+      results.push({ name, ok: false, detail: error && error.message ? error.message : String(error) });
+    }
+  };
+  const assert = (condition, message) => {
+    if (!condition) throw new Error(message || 'assertie mislukt');
+  };
+  const assertIncludes = (haystack, needle) => {
+    assert(String(haystack).includes(needle), `verwacht "${needle}" in de uitvoer`);
+  };
+  const assertExcludes = (haystack, needle) => {
+    assert(!String(haystack).includes(needle), `"${needle}" had er niet in mogen staan`);
+  };
+  const checkAsync = async (name, fn) => {
+    try {
+      const detail = await fn();
+      results.push({ name, ok: true, detail: detail || '' });
+    } catch (error) {
+      results.push({ name, ok: false, detail: error && error.message ? error.message : String(error) });
+    }
+  };
+
+  const wtf = globalThis.webToFile;
+  const loadFixture = (name) => {
+    const html = (globalThis.FIXTURES || {})[name];
+    if (!html) throw new Error(`fixture ${name} ontbreekt — draai node tools/fixtures.mjs`);
+    return html;
+  };
+
+  check('het userscript stelt zijn testhaak beschikbaar', () => {
+    assert(wtf && typeof wtf.parseHtml === 'function', 'window.webToFile ontbreekt');
+  });
+
+  /* ---------------- Confluence-achtige pagina ---------------- */
+
+  const confluenceUrl = 'https://wiki.intern/wiki/spaces/PLAT/pages/100/Deployproces';
+  const confluenceHtml = loadFixture('confluence.html');
+  const confluenceDoc = wtf.parseHtml(confluenceHtml, confluenceUrl);
+  const confluence = wtf.findContentRoot(confluenceDoc, confluenceUrl);
+  const confluenceMeta = wtf.extractPageMeta(confluenceDoc, confluenceUrl, confluence.root);
+
+  check('parseHtml maakt relatieve links absoluut via <base>', () => {
+    const anchor = confluenceDoc.querySelector('a[href="pages/102/Checklist"]');
+    assert(anchor, 'testlink niet gevonden');
+    assert(
+      anchor.href === 'https://wiki.intern/wiki/spaces/PLAT/pages/100/pages/102/Checklist',
+      `onverwacht: ${anchor.href}`,
+    );
+  });
+
+  check('findContentRoot pakt de Confluence-inhoud', () => {
+    assert(confluence.via === '#main-content', `gekozen via ${confluence.via}`);
+    return confluence.via;
+  });
+
+  check('extractPageMeta leest titel, canonical en datum', () => {
+    assert(confluenceMeta.title === 'Deployproces', `titel was "${confluenceMeta.title}"`);
+    assert(confluenceMeta.canonical === 'https://wiki.intern/wiki/spaces/PLAT/pages/100/Deployproces',
+      `canonical was "${confluenceMeta.canonical}"`);
+    assert(confluenceMeta.lastModified.startsWith('2026-04-02'), 'datum niet gevonden');
+    assert(confluenceMeta.breadcrumbs.join(' > ') === 'Platform > Ops', confluenceMeta.breadcrumbs.join(','));
+  });
+
+  check('links komen uit de inhoud, niet uit menu of footer', () => {
+    const urls = wtf.collectLinks(confluence.root, confluenceUrl).map((link) => link.url);
+    assertIncludes(urls.join('\n'), 'https://wiki.intern/wiki/spaces/PLAT/pages/101/Rollback');
+    assertIncludes(urls.join('\n'), 'https://wiki.intern/wiki/spaces/PLAT/pages/100/pages/102/Checklist');
+    assertExcludes(urls.join('\n'), '/login');
+    assertExcludes(urls.join('\n'), 'dashboard.action');
+    assertExcludes(urls.join('\n'), '999/Footerlink');
+    return `${urls.length} links`;
+  });
+
+  check('het scope-filter houdt externe en systeemlinks buiten de crawl', () => {
+    const allow = wtf.createScopeFilter({ startUrl: confluenceUrl, prefix: 'https://wiki.intern/wiki/' });
+    const urls = wtf.collectLinks(confluence.root, confluenceUrl).map((link) => link.url);
+    const kept = urls.filter((url) => allow(url).ok);
+    assert(kept.length === 2, `verwacht 2 pagina's, kreeg ${kept.length}: ${kept.join(', ')}`);
+    assertExcludes(kept.join('\n'), 'elders.example.com');
+  });
+
+  const confluenceMarkdown = wtf.pageToMarkdown(confluence.root, {
+    imageMode: 'link', demoteBy: 2, title: confluenceMeta.title,
+  });
+
+  check('de eigen H1 wordt niet nog eens als kop meegenomen', () => {
+    assertExcludes(confluenceMarkdown, '# Deployproces');
+  });
+
+  check('koppen worden verlaagd zodat ze onder de sectiekop passen', () => {
+    // De H1 "Deployproces" wordt de sectiekop (##), dus H2 zakt naar H3.
+    assertIncludes(confluenceMarkdown, '### Stappen');
+    assertExcludes(confluenceMarkdown, '#### Stappen');
+  });
+
+  check('opsommingen krijgen één spatie na het streepje', () => {
+    const doc = wtf.parseHtml('<div id="main-content"><h1>T</h1><ul><li>een<ul><li>genest</li></ul></li></ul></div>', 'https://a.nl/');
+    const md = wtf.pageToMarkdown(doc.querySelector('#main-content'), { demoteBy: 2, title: 'T' });
+    assertIncludes(md, '- een');
+    assertExcludes(md, '-   een');
+    assertIncludes(md, '    - genest');
+  });
+
+  check('tabellen worden GFM-tabellen', () => {
+    assertIncludes(confluenceMarkdown, '| Omgeving | Doorlooptijd |');
+    assertIncludes(confluenceMarkdown, '| Productie | 25 min |');
+  });
+
+  check('een Confluence-waarschuwing wordt een blockquote', () => {
+    assertIncludes(confluenceMarkdown, '> **Waarschuwing**');
+    assertIncludes(confluenceMarkdown, 'Nooit vrijdagmiddag uitrollen.');
+  });
+
+  check('codeblokken houden hun taal', () => {
+    assertIncludes(confluenceMarkdown, '```bash');
+    assertIncludes(confluenceMarkdown, 'make deploy ENV=prod');
+  });
+
+  check('afbeeldingen krijgen een absolute URL', () => {
+    assertIncludes(confluenceMarkdown, '![Stroomschema](https://wiki.intern/wiki/download/thumbnails/1/diagram.png)');
+  });
+
+  check('reacties, navigatie en footer staan niet in de Markdown', () => {
+    assertExcludes(confluenceMarkdown, 'Dit stuk hoort er niet bij');
+    assertExcludes(confluenceMarkdown, 'Dashboard');
+    assertExcludes(confluenceMarkdown, 'Footer');
+  });
+
+  check('cleanContent laat het originele document ongemoeid', () => {
+    assert(confluenceDoc.querySelector('.comment-list'), 'het origineel is aangepast');
+    assert(confluenceDoc.querySelector('nav.aui-header'), 'de navigatie is uit het origineel verdwenen');
+  });
+
+  /* ---------------- generieke pagina zonder bekende selector ---------------- */
+
+  const genericUrl = 'https://tools.intern/handleiding/index.html';
+  const genericDoc = wtf.parseHtml(loadFixture('generiek.html'), genericUrl);
+  const generic = wtf.findContentRoot(genericDoc, genericUrl);
+
+  check('de heuristiek vindt de inhoud zonder bekende selector', () => {
+    assert(generic.via === 'heuristiek', `gekozen via ${generic.via}`);
+    assert(generic.root.className.includes('page-body'), `koos .${generic.root.className}`);
+    return generic.root.className;
+  });
+
+  check('zijbalk- en menulinks vallen buiten de crawl', () => {
+    const urls = wtf.collectLinks(generic.root, genericUrl).map((link) => link.url);
+    assertIncludes(urls.join('\n'), 'https://tools.intern/handleiding/voorbereiding');
+    assertIncludes(urls.join('\n'), 'https://tools.intern/handleiding/fase-2');
+    assertExcludes(urls.join('\n'), '/handleiding/a');
+    assertExcludes(urls.join('\n'), '/zoeken/');
+  });
+
+  const genericMarkdown = wtf.pageToMarkdown(generic.root, { imageMode: 'link', demoteBy: 2, title: 'Handleiding' });
+
+  check('opmaak en codeblokken blijven behouden', () => {
+    assertIncludes(genericMarkdown, '**Let op:**');
+    assertIncludes(genericMarkdown, '_alle_');
+    assertIncludes(genericMarkdown, '```js');
+    assertIncludes(genericMarkdown, 'console.log(x);');
+  });
+
+  /* ---------------- losse onderdelen ---------------- */
+
+  check('demoteHeadings verlaagt en stopt bij h6', () => {
+    const doc = wtf.parseHtml('<div><h1>a</h1><h5>b</h5><h6>c</h6></div>', 'https://a.nl/');
+    const root = doc.querySelector('div');
+    wtf.demoteHeadings(root, 2);
+    assert(root.querySelector('h3'), 'h1 had h3 moeten worden');
+    assert(root.querySelectorAll('h6').length === 2, 'h5 en h6 horen op h6 uit te komen');
+  });
+
+  check('cssPathFor levert een selector die hetzelfde element terugvindt', () => {
+    const target = genericDoc.querySelector('.page-body h2');
+    const selector = wtf.cssPathFor(target);
+    assert(genericDoc.querySelector(selector) === target, `selector "${selector}" wees ergens anders naar`);
+    return selector;
+  });
+
+  check('assembleDocument bouwt een document van echte paginainhoud', () => {
+    const { markdown, stats } = wtf.assembleDocument({
+      startUrl: confluenceUrl,
+      depth: 1,
+      pages: [
+        { title: confluenceMeta.title, url: confluenceUrl, finalUrl: confluenceUrl, markdown: confluenceMarkdown, lastModified: confluenceMeta.lastModified },
+        { title: 'Handleiding', url: genericUrl, finalUrl: genericUrl, markdown: genericMarkdown },
+      ],
+      failures: [],
+    });
+    assertIncludes(markdown, '## 1. Deployproces');
+    assertIncludes(markdown, '## 2. Handleiding');
+    assertIncludes(markdown, '1. [Deployproces](#1-deployproces)');
+    assert(stats.pages === 2, 'aantal pagina\'s klopt niet');
+    assert(stats.words > 50, 'woordentelling lijkt leeg');
+    return `${stats.words} woorden`;
+  });
+
+  check('het paneel kan geopend worden en zit in een shadow DOM', () => {
+    wtf.openWizard();
+    const host = document.querySelector('[data-web-to-file="panel"]');
+    assert(host, 'paneel niet gevonden');
+    assert(host.shadowRoot, 'paneel gebruikt geen shadow DOM');
+    assert(host.shadowRoot.querySelector('.panel'), 'paneelinhoud ontbreekt');
+    assert(!host.textContent, 'de inhoud lekt naar de pagina');
+    host.remove();
+  });
+
+
+  /* ---------------- de crawl in twee fasen ---------------- */
+
+  const SITE = {
+    'https://intern.nl/wiki/start': `<html><head><title>Start</title></head><body>
+      <nav><a href="/wiki/menu-link">Menu</a></nav>
+      <div id="main-content"><h1>Startpagina</h1>
+        <p>Deze startpagina verwijst naar de onderliggende pagina's van de ruimte.</p>
+        <a href="/wiki/a">Pagina A</a> <a href="/wiki/b/">Pagina B</a>
+        <a href="/wiki/b">Pagina B nog een keer</a>
+        <a href="/wiki/kapot">Kapotte pagina</a>
+        <a href="https://buiten.nl/x">Externe site</a> <a href="/login">Inloggen</a>
+      </div></body></html>`,
+    'https://intern.nl/wiki/a': `<html><head><title>A</title></head><body>
+      <div id="main-content"><h1>Pagina A</h1><p>De inhoud van pagina A met genoeg tekst
+      om als hoofdinhoud herkend te worden door de heuristiek.</p>
+      <a href="/wiki/diep">Nog dieper</a></div></body></html>`,
+    'https://intern.nl/wiki/b': `<html><head><title>B</title></head><body>
+      <div id="main-content"><h1>Pagina B</h1><p>De inhoud van pagina B, ook met
+      voldoende tekst om mee te gaan in de export.</p></div></body></html>`,
+    'https://intern.nl/wiki/diep': `<html><head><title>Diep</title></head><body>
+      <div id="main-content"><h1>Diepe pagina</h1><p>Deze pagina zit twee lagen diep en
+      hoort er alleen bij als je diepte 2 kiest.</p></div></body></html>`,
+  };
+
+  const makeLoader = (log) => async (node) => {
+    log.push(node.url);
+    const html = SITE[node.url] || SITE[node.url.replace(/\/$/, '')] || SITE[`${node.url}/`];
+    if (!html) return { ok: false, reason: 'HTTP 404' };
+    return { ok: true, doc: wtf.parseHtml(html, node.url), finalUrl: node.url, bytes: html.length };
+  };
+
+  const startUrl = 'https://intern.nl/wiki/start';
+  const makeCrawler = (depth, maxPages, log) => wtf.createCrawler({
+    startUrl,
+    depth,
+    maxPages,
+    imageMode: 'link',
+    allow: wtf.createScopeFilter({ startUrl, prefix: 'https://intern.nl/wiki/' }),
+    loadPage: makeLoader(log),
+  });
+
+  await checkAsync('verkennen bij diepte 1 haalt alleen de startpagina op', async () => {
+    const log = [];
+    const crawler = makeCrawler(1, 100, log);
+    const { nodes } = await crawler.discover();
+    assert(log.length === 1, `er zijn ${log.length} pagina's opgehaald in plaats van 1`);
+    assert(nodes.length === 4, `verwacht 4 pagina's in de lijst, kreeg ${nodes.length}`);
+    assert(nodes.filter((node) => node.fetched).length === 1, 'alleen de startpagina hoort geladen te zijn');
+    return `${nodes.length} gevonden na 1 verzoek`;
+  });
+
+  await checkAsync('dezelfde pagina onder twee URLs komt één keer in de lijst', async () => {
+    const crawler = makeCrawler(1, 100, []);
+    const { nodes } = await crawler.discover();
+    const paths = nodes.map((node) => node.url);
+    assert(paths.filter((url) => url.includes('/wiki/b')).length === 1, paths.join(', '));
+  });
+
+  await checkAsync('externe en systeemlinks blijven buiten de lijst', async () => {
+    const crawler = makeCrawler(1, 100, []);
+    const { nodes } = await crawler.discover();
+    const urls = nodes.map((node) => node.url).join('\n');
+    assertExcludes(urls, 'buiten.nl');
+    assertExcludes(urls, '/login');
+    assertExcludes(urls, 'menu-link');
+  });
+
+  await checkAsync('ophalen doet daarna de rest en meldt wat er misging', async () => {
+    const log = [];
+    const crawler = makeCrawler(1, 100, log);
+    const { nodes } = await crawler.discover();
+    const { pages, failures } = await crawler.collect(nodes);
+    assert(log.length === 4, `verwacht 4 verzoeken in totaal, kreeg ${log.length}`);
+    assert(pages.length === 3, `verwacht 3 gelukte pagina's, kreeg ${pages.length}`);
+    assert(failures.length === 1 && failures[0].reason === 'HTTP 404', JSON.stringify(failures));
+    assert(pages.every((page) => page.markdown && page.markdown.length > 20), 'niet elke pagina heeft inhoud');
+    const titles = pages.map((page) => page.title).sort().join(' | ');
+    assert(titles === 'Pagina A | Pagina B | Startpagina', titles);
+    return titles;
+  });
+
+  await checkAsync('diepte 2 neemt ook de laag daaronder mee', async () => {
+    const log = [];
+    const crawler = makeCrawler(2, 100, log);
+    const { nodes } = await crawler.discover();
+    // Om laag 2 te kunnen tonen moeten laag 0 en laag 1 wel opgehaald zijn.
+    assert(log.length === 4, `verwacht 4 verzoeken tijdens verkennen, kreeg ${log.length}`);
+    assert(nodes.some((node) => node.url === 'https://intern.nl/wiki/diep'), 'de diepe pagina ontbreekt');
+    return `${nodes.length} pagina's gevonden`;
+  });
+
+  await checkAsync('het maximum kapt de lijst af en meldt dat', async () => {
+    const crawler = makeCrawler(1, 2, []);
+    const { nodes, truncated } = await crawler.discover();
+    assert(nodes.length === 2, `verwacht 2, kreeg ${nodes.length}`);
+    assert(truncated === true, 'truncated had waar moeten zijn');
+  });
+
+  /* ---------------- rapport ---------------- */
+
+  const failed = results.filter((result) => !result.ok);
+  const list = document.getElementById('results');
+  for (const result of results) {
+    const item = document.createElement('li');
+    item.className = result.ok ? 'pass' : 'fail';
+    item.textContent = `${result.ok ? 'PASS' : 'FAIL'} — ${result.name}${result.detail ? ` (${result.detail})` : ''}`;
+    list.append(item);
+  }
+  const summary = document.getElementById('summary');
+  summary.className = failed.length ? 'fail' : 'pass';
+  summary.textContent = failed.length
+    ? `${failed.length} van ${results.length} tests mislukt`
+    : `alle ${results.length} tests geslaagd`;
+  document.documentElement.setAttribute('data-wtf-status', failed.length ? 'fail' : 'pass');
+  document.documentElement.setAttribute('data-wtf-total', String(results.length));
+}()).catch((error) => {
+  document.getElementById('summary').className = 'fail';
+  document.getElementById('summary').textContent = `harnas-fout: ${error && error.message ? error.message : error}`;
+  document.documentElement.setAttribute('data-wtf-status', 'error');
+});
+</script>
+</body>
+</html>

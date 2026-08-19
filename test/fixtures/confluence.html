@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <title>Deployproces - Platform - Confluence</title>
+  <link rel="canonical" href="/wiki/spaces/PLAT/pages/100/Deployproces">
+  <meta property="article:modified_time" content="2026-04-02T10:00:00Z">
+</head>
+<body>
+  <div id="header"><nav class="aui-header"><a href="/wiki/dashboard.action">Dashboard</a><a href="/login">Inloggen</a></nav></div>
+  <ol class="breadcrumb"><li><a href="/wiki/spaces/PLAT">Platform</a></li><li><a href="/wiki/spaces/PLAT/pages/1/Ops">Ops</a></li></ol>
+  <div id="main-content" class="wiki-content">
+    <h1>Deployproces</h1>
+    <p>Het deployproces bestaat uit drie stappen. Zie ook de <a href="/wiki/spaces/PLAT/pages/101/Rollback">rollbackpagina</a>
+       en de <a href="pages/102/Checklist">checklist</a>. Externe naslag staat op <a href="https://elders.example.com/x">een andere site</a>.</p>
+    <h2>Stappen</h2>
+    <ol><li>Bouwen</li><li>Testen</li><li>Uitrollen</li></ol>
+    <table>
+      <thead><tr><th>Omgeving</th><th>Doorlooptijd</th></tr></thead>
+      <tbody><tr><td>Acceptatie</td><td>10 min</td></tr><tr><td>Productie</td><td>25 min</td></tr></tbody>
+    </table>
+    <div class="confluence-information-macro confluence-information-macro-warning">
+      <span class="confluence-information-macro-icon aui-icon"></span>
+      <div class="confluence-information-macro-body"><p>Nooit vrijdagmiddag uitrollen.</p></div>
+    </div>
+    <pre class="syntaxhighlighter-pre" data-syntaxhighlighter-params="brush: bash; gutter: false">make deploy ENV=prod</pre>
+    <p>Een plaatje: <img src="/wiki/download/thumbnails/1/diagram.png" alt="Stroomschema"></p>
+    <div class="pageSection group comment-list"><h2>2 opmerkingen</h2><p>Dit stuk hoort er niet bij.</p></div>
+  </div>
+  <div class="page-metadata"><a href="/wiki/spaces/PLAT/pages/100/Deployproces?showComments=true">Reacties</a></div>
+  <footer id="footer"><a href="/wiki/spaces/PLAT/pages/999/Footerlink">Footer</a></footer>
+</body>
+</html>
