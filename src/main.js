@@ -31,9 +31,12 @@ function findButtonHost() {
   return document.querySelector('[data-web-to-file="button"]');
 }
 
-/** De knop staat per site aan; standaard nergens. */
+/**
+ * De knop staat standaard overal; per site kun je hem verbergen. Alleen een
+ * expliciete `false` verbergt hem, zodat "nog nooit iets ingesteld" zichtbaar is.
+ */
 function isButtonEnabled() {
-  return getDomainConfig(location.host).button === true;
+  return getDomainConfig(location.host).button !== false;
 }
 
 function currentViewport() {
@@ -108,13 +111,13 @@ function makeDraggable(button) {
 }
 
 function mountFloatingButton() {
-  if (findButtonHost()) return;
+  if (!document.body || findButtonHost()) return;
   const host = el('div', { 'data-web-to-file': 'button' });
   host.style.cssText = 'all: initial;';
   const shadow = host.attachShadow({ mode: 'open' });
   const button = el('button', {
     type: 'button',
-    title: "Pagina('s) opslaan als Markdown — versleep om te verplaatsen",
+    title: "Pagina('s) opslaan als Markdown\nVersleep om te verplaatsen · verbergen via het Tampermonkey-menu",
     'aria-label': "Pagina('s) opslaan als Markdown",
     text: '↓',
   });

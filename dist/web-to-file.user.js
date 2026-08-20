@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         web-to-file — pagina's opslaan als Markdown
 // @namespace    https://github.com/spotmeisterfun/web-to-file
-// @version      1.1.0
+// @version      1.2.0
 // @description  Sla een pagina en de onderliggende pagina's op als één Markdown-bestand, te gebruiken als referentiemateriaal voor Copilot.
 // @author       spotmeisterfun
 // @homepageURL  https://github.com/spotmeisterfun/web-to-file
@@ -23,7 +23,7 @@
 (function () {
 'use strict';
 
-const BUILD_VERSION = "1.1.0";
+const BUILD_VERSION = "1.2.0";
 
 /* =========================================================
  * vendor/turndown.js
@@ -2781,15 +2781,15 @@ function openWizard() {
         el('span', { class: 'hint', text: 'Leeghalen om het hele domein toe te staan. Navigatie, footer en zijbalk worden altijd al genegeerd.' }),
       ]),
       isButtonEnabled() ? null : el('div', { class: 'hint' }, [
-        'Sneller starten? ',
+        'Het knopje is op deze site verborgen. ',
         el('button', {
           class: 'link',
           type: 'button',
-          text: 'zet het knopje op deze site',
+          text: 'Weer aanzetten',
           onclick: () => {
             captureInputs();
             setButtonEnabled(true);
-            panel.setStatus('Het knopje staat nu rechtsonder op deze site.');
+            panel.setStatus('Het knopje staat weer rechtsonder op deze site.');
             renderStart();
           },
         }),
@@ -3111,9 +3111,12 @@ function findButtonHost() {
   return document.querySelector('[data-web-to-file="button"]');
 }
 
-/** De knop staat per site aan; standaard nergens. */
+/**
+ * De knop staat standaard overal; per site kun je hem verbergen. Alleen een
+ * expliciete `false` verbergt hem, zodat "nog nooit iets ingesteld" zichtbaar is.
+ */
 function isButtonEnabled() {
-  return getDomainConfig(location.host).button === true;
+  return getDomainConfig(location.host).button !== false;
 }
 
 function currentViewport() {
@@ -3188,13 +3191,13 @@ function makeDraggable(button) {
 }
 
 function mountFloatingButton() {
-  if (findButtonHost()) return;
+  if (!document.body || findButtonHost()) return;
   const host = el('div', { 'data-web-to-file': 'button' });
   host.style.cssText = 'all: initial;';
   const shadow = host.attachShadow({ mode: 'open' });
   const button = el('button', {
     type: 'button',
-    title: "Pagina('s) opslaan als Markdown — versleep om te verplaatsen",
+    title: "Pagina('s) opslaan als Markdown\nVersleep om te verplaatsen · verbergen via het Tampermonkey-menu",
     'aria-label': "Pagina('s) opslaan als Markdown",
     text: '↓',
   });
